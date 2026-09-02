@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-auth-pending>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="assets/css/styles.css?v=20" />
 <link rel="stylesheet" href="assets/css/admin.css?v=20" />
+<style>html[data-auth-pending] body { visibility: hidden; }</style>
 </head>
 <body class="adm">
 
@@ -46,9 +47,10 @@
       <button class="adm__navlink" data-view="roadmap"><svg class="ic"><use href="#i-users"/></svg>Not built yet</button>
     </nav>
     <p class="adm__mode">
-      <span class="chip chip--info">Local mode</span>
-      Edits live in this browser until you publish.
+      <span class="chip chip--available">Supabase live</span>
+      Product changes are saved directly to the database.
     </p>
+    <button class="adm__navlink" id="logout-admin" type="button">Sign out</button>
   </aside>
 
   <main class="adm__main">
@@ -104,14 +106,14 @@
 
     <!-- ══ CATEGORIES ══ -->
     <section class="adm__view" data-view="categories">
-      <header class="adm__head"><div><h1>Categories</h1><p>Groups and categories currently driving the marketplace tabs.</p></div></header>
+      <header class="adm__head"><div><h1>Categories</h1><p>Groups and categories currently loaded from Supabase.</p></div></header>
       <div class="adm__cards" id="cat-cards"></div>
-      <p class="adm__note">Categories are defined by <code>GROUPS</code> in <code>assets/js/data.js</code>. Adding a category here requires a publish; on a live database it becomes a row in the <code>categories</code> table.</p>
+      <p class="adm__note">Categories are managed in the Supabase <code>categories</code> table. Product editing uses the active subcategories shown above.</p>
     </section>
 
     <!-- ══ IMPORT & PUBLISH ══ -->
     <section class="adm__view" data-view="data">
-      <header class="adm__head"><div><h1>Import &amp; publish</h1><p>Move the catalogue between Excel and the site.</p></div></header>
+      <header class="adm__head"><div><h1>Import &amp; export</h1><p>Move catalogue data between Excel and Supabase.</p></div></header>
 
       <div class="adm__steps">
         <article class="adm__card">
@@ -138,9 +140,9 @@
 
         <article class="adm__card adm__card--go">
           <span class="adm__step">04</span>
-          <h3>Publish</h3>
-          <p>Generates a new <code>assets/js/data.js</code>. Replace the file on your host and the site is updated.</p>
-          <button class="btn btn--brand" id="publish"><svg class="ic"><use href="#i-down"/></svg>Generate data.js</button>
+          <h3>Download a backup</h3>
+          <p>Generates a <code>data.js</code> snapshot for backup or offline use. Supabase remains the live source.</p>
+          <button class="btn btn--brand" id="publish"><svg class="ic"><use href="#i-down"/></svg>Download data.js</button>
         </article>
       </div>
 
@@ -152,19 +154,19 @@
       <header class="adm__head"><div><h1>Insights</h1><p>Computed from the catalogue you have loaded.</p></div></header>
       <div class="adm__stats" id="adm-stats"></div>
       <div class="adm__cards" id="adm-breakdown"></div>
-      <p class="adm__note">Traffic, conversion and quotation analytics need a backend — see “Not built yet”.</p>
+      <p class="adm__note">Catalogue insights are live. Traffic, conversion and quotation analytics are not implemented yet.</p>
     </section>
 
     <!-- ══ ROADMAP ══ -->
     <section class="adm__view" data-view="roadmap">
       <header class="adm__head"><div><h1>Not built yet</h1><p>What this console deliberately does not pretend to do.</p></div></header>
       <div class="adm__cards">
-        <article class="adm__card"><h3>Authentication</h3><p>There is no login, because a static site cannot keep a secret. Anything in this page is readable by anyone who opens it. Host it behind HTTP auth, a private path, or run it locally until Supabase Auth is wired in.</p></article>
-        <article class="adm__card"><h3>Customer &amp; supplier accounts</h3><p>Tables exist in <code>db/schema.sql</code> (<code>profiles</code>, <code>suppliers</code>, <code>customers</code> via profiles) with row-level security already written. Needs the database.</p></article>
+        <article class="adm__card"><h3>Authentication</h3><p>Admin access uses Supabase Auth and requires an <code>admin</code> or <code>staff</code> profile. Database row-level security protects writes.</p></article>
+        <article class="adm__card"><h3>Customer &amp; supplier accounts</h3><p>The supporting tables exist, but self-service customer and supplier account screens are not implemented yet.</p></article>
         <article class="adm__card"><h3>Quotations &amp; BOQ inbox</h3><p>Front-end forms currently confirm and discard. <code>quotes</code>, <code>quote_items</code>, <code>projects</code> and <code>project_files</code> are modelled and ready.</p></article>
-        <article class="adm__card"><h3>File uploads</h3><p>DWG, PDF and ZIP uploads need object storage. <code>CKAStore.files.upload()</code> is the single call site — swapping to Supabase Storage, S3 or Cloudinary changes one function.</p></article>
+        <article class="adm__card"><h3>File uploads</h3><p>Project files use Supabase Storage. A private bucket and stricter upload validation are recommended before public launch.</p></article>
         <article class="adm__card"><h3>Live bidding</h3><p>The board on the public site is a simulation. Real bids need <code>supplier_bids</code> plus a realtime channel.</p></article>
-        <article class="adm__card"><h3>Image uploads</h3><p>New images must be added to <code>assets/img/</code> and referenced by path. Direct upload arrives with storage.</p></article>
+        <article class="adm__card"><h3>Image uploads</h3><p>Product images can be uploaded directly to Supabase Storage from the product editor.</p></article>
       </div>
     </section>
 
@@ -182,6 +184,7 @@
     <form class="adm__drawer-body" id="editor-form" novalidate>
       <input type="hidden" name="id" />
       <div class="adm__grid2">
+        <label class="field"><span>Product ID / SKU *</span><input class="input" name="sku" required /></label>
         <label class="field"><span>Product name *</span><input class="input" name="title" required /></label>
         <label class="field"><span>Brand</span><input class="input" name="brand" /></label>
         <label class="field"><span>Category *</span><select class="select" name="category" required id="ed-cat"></select></label>
@@ -195,7 +198,7 @@
         <label class="field"><span>Market range</span><input class="input" name="range" placeholder="PKR 1,420 – 1,500" /></label>
         <label class="field"><span>Availability</span><select class="select" name="stock">
           <option value="">Not shown</option><option>In stock</option><option>Low stock</option>
-          <option>On order</option><option>Out of stock</option></select></label>
+          <option>On order</option><option>Out of stock</option><option>Rate on request</option></select></label>
         <label class="field"><span>Supplier</span><input class="input" name="supplier" /></label>
         <label class="field"><span>Badge</span><input class="input" name="badge" placeholder="OPC" /></label>
         <label class="field"><span>Display order</span><input class="input" name="order" type="number" step="1" /></label>
@@ -238,17 +241,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/data.js?v=20"></script>
-<script src="assets/js/store.js?v=25"></script>
-<script src="assets/js/admin.js?v=25"></script>
+<script src="assets/js/store.js?v=26"></script>
 <script>
 (async function requireAdminAuth() {
 
   try {
 
-    const authClient = supabase.createClient(
-      CKA_CONFIG.supabaseUrl,
-      CKA_CONFIG.supabaseAnonKey
-    );
+    const authClient = CKAStore.supabase;
 
     const { data, error } =
       await authClient.auth.getUser();
@@ -275,7 +274,14 @@
       return;
     }
 
-    console.log("✅ ADMIN AUTH VERIFIED:", data.user.email);
+    document.documentElement.removeAttribute("data-auth-pending");
+
+    const dashboardScript = document.createElement("script");
+    dashboardScript.src = "assets/js/admin.js?v=26";
+    dashboardScript.onerror = () => {
+      document.body.textContent = "The admin dashboard could not be loaded.";
+    };
+    document.body.appendChild(dashboardScript);
 
   } catch (err) {
 
