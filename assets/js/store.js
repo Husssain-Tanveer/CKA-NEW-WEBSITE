@@ -18,14 +18,59 @@
        CKAStore.inquiries.create(i)    → Promise<Inquiry>   (contact form)
 
    Two implementations ship here:
-     LocalStore     — works today, no backend, browser storage
-     SupabaseStore  — stubbed against db/schema.sql, ready to enable
+     LocalStore     — fallback backend using browser storage
+     SupabaseStore  — active backend mapped to db/schema.sql
    ═══════════════════════════════════════════════════════════════ */
 (function (global) {
   "use strict";
 
   const DRAFT_KEY = "cka-catalogue-draft-v1";
   const PROJECT_KEY = "cka-projects-v1";
+  const STOCK_LABELS = {
+    in_stock: "In stock",
+    low_stock: "Low stock",
+    on_order: "On order",
+    out_of_stock: "Out of stock",
+    rate_on_request: "Rate on request"
+  };
+  const STOCK_VALUES = Object.fromEntries(
+    Object.entries(STOCK_LABELS).map(([value, label]) => [label, value])
+  );
+
+  function stockFromDb(value) {
+    return STOCK_LABELS[value] || value || "";
+  }
+
+  function stockToDb(value) {
+    return STOCK_VALUES[value] || value || "in_stock";
+  }
+
+  function specsToText(value) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    return Object.entries(value).map(([key, val]) => `${key}: ${val}`).join("; ");
+  }
+
+  function specsToObject(value) {
+    if (!value) return {};
+    if (typeof value === "object" && !Array.isArray(value)) return value;
+    return String(value).split(";").reduce((result, part) => {
+      const separator = part.indexOf(":");
+      if (separator < 1) return result;
+      const key = part.slice(0, separator).trim();
+      const val = part.slice(separator + 1).trim();
+      if (key && val) result[key] = val;
+      return result;
+    }, {});
+  }
+
+  function priceRange(value) {
+    const values = String(value || "").replace(/,/g, "").match(/\d+(?:\.\d+)?/g) || [];
+    return {
+      min: values[0] ? Number(values[0]) : null,
+      max: values[1] ? Number(values[1]) : null
+    };
+  }
 
   /* CKA-P-2026-04821 — readable, collision-safe without a server round trip */
   function genRef(prefix) {
@@ -57,13 +102,13 @@
       price:      Number(p.price) || 0,
       oldPrice:   Number(p.oldPrice) || 0,
       range:      p.range || "",
-      stock:      p.stock || "",
+      stock:      stockFromDb(p.stock),
       img:        p.img || (Array.isArray(p.images) && p.images[0]) || "",
       images:     Array.isArray(p.images) && p.images.length ? p.images.slice()
                   : (p.img ? [p.img] : []),
       featured:   !!p.featured,
       order:      Number(p.order) || 0,
-      specs:      p.specs || "",
+      specs:      specsToText(p.specs || p.specifications),
       tags:       Array.isArray(p.tags) ? p.tags : (p.tags ? String(p.tags).split(/\s*,\s*/) : []),
       rating:     Number(p.rating) || 0,
       deals:      p.deals || "",
@@ -179,22 +224,30 @@
   };
 
   /* ── SupabaseStore ───────────────────────────────────────────
-     Not active. Enable by loading the supabase-js client, filling in
-     CKA_CONFIG below, and changing the export at the bottom.
-     Column names match db/schema.sql exactly. */
-  function createSupabaseStore(client, bucket) {
-    const B = bucket || "project-uploads";
+     Active adapter. Column names match db/schema.sql exactly. */
+  function createSupabaseStore(client, bucket, projectBucket) {
+    const B = bucket || "product-images";
+    const PROJECT_BUCKET = projectBucket || "project-uploads";
 
-const fromRow = (r) => normalise({
+const fromRow = (r) => {
+  const variant = Array.isArray(r.variants) && r.variants.length ? r.variants[0] : {};
+  const specifications = r.specifications || {};
+  return normalise({
   id: r.id, sku: r.sku, title: r.name, category: r.category_name,
   subcategory: r.parent_category ? r.category_name : "",
- brand: r.brand, quality: r.quality, description: r.description, unit: r.unit, price: r.price, oldPrice: r.old_price,
+ brand: r.brand,
+ quality: variant.label || specifications.quality,
+ grade: variant.grade || specifications.grade,
+ size: variant.size || specifications.size,
+ badge: specifications.badge,
+ description: r.description, unit: r.unit, price: r.price, oldPrice: r.old_price,
   range: r.price_min && r.price_max ? `PKR ${r.price_min} – ${r.price_max}` : "",
   stock: r.stock, supplier: r.supplier_name, rating: r.rating,
   deals: r.order_count, featured: r.is_featured, order: r.display_order,
-  tags: r.tags, img: r.main_image,
+  tags: r.tags, specs: r.specifications, img: r.main_image,
 images: (r.images || []).map((i) => i.url)
 });
+};
 
     return {
       name: "supabase",
@@ -226,8 +279,6 @@ if (!categoryError && categories) {
 }
 
 return products;
-
-  return products;
 },
 async save(p) {
   const { data: categoryRow, error: categoryError } = await client
@@ -242,28 +293,88 @@ async save(p) {
     throw new Error(`Category not found: ${p.category}`);
   }
 
-  const { data, error } = await client.from("products").upsert({
-    id: p.id || undefined,
-    sku: p.sku,
+  let supplierId = null;
+  if (p.supplier) {
+    const { data: supplierRow, error: supplierError } = await client
+      .from("suppliers")
+      .select("id")
+      .eq("company_name", p.supplier)
+      .limit(1)
+      .maybeSingle();
+    if (supplierError) throw supplierError;
+    if (!supplierRow) throw new Error(`Supplier not found: ${p.supplier}`);
+    supplierId = supplierRow.id;
+  }
+
+  const range = priceRange(p.range);
+  const specifications = specsToObject(p.specs);
+  if (p.quality) specifications.quality = p.quality;
+  if (p.grade) specifications.grade = p.grade;
+  if (p.size) specifications.size = p.size;
+  if (p.badge) specifications.badge = p.badge;
+
+  const payload = {
+    sku: String(p.sku || "").trim() || null,
     name: p.title,
     category_id: categoryRow.id,
-    image_url: Array.isArray(p.images) ? p.images[0] || null : null,
+    supplier_id: supplierId,
     brand: p.brand,
-    quality: p.quality || null,
     description: p.description,
     unit: p.unit,
     price: p.price,
     old_price: p.oldPrice || null,
-    stock: p.stock || "in_stock",
+    price_min: range.min,
+    price_max: range.max,
+    stock: stockToDb(p.stock),
+    specifications,
     tags: p.tags,
     is_featured: p.featured,
     display_order: p.order,
-    is_active: p.active
-  }).select().single();
+    rating: p.rating || null,
+    is_active: p.active !== false
+  };
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(p.id || "");
+  let result;
+  if (isUuid) {
+    result = await client.from("products").update(payload).eq("id", p.id).select().single();
+  } else if (payload.sku) {
+    result = await client.from("products").upsert(payload, { onConflict: "sku" }).select().single();
+  } else {
+    result = await client.from("products").insert(payload).select().single();
+  }
+
+  const { data, error } = result;
 
   if (error) throw error;
 
-  return fromRow(data);
+  const images = (p.images || []).filter(Boolean);
+  if (images.length) {
+    const imageRows = images.map((url, position) => ({
+      product_id: data.id,
+      url,
+      alt: p.title,
+      position
+    }));
+    const { error: imageError } = await client
+      .from("product_images")
+      .upsert(imageRows, { onConflict: "product_id,position" });
+    if (imageError) throw imageError;
+    const { error: staleImageError } = await client
+      .from("product_images")
+      .delete()
+      .eq("product_id", data.id)
+      .gte("position", images.length);
+    if (staleImageError) throw staleImageError;
+  } else {
+    const { error: imageError } = await client
+      .from("product_images")
+      .delete()
+      .eq("product_id", data.id);
+    if (imageError) throw imageError;
+  }
+
+  return normalise({ ...p, id: data.id, sku: data.sku });
 },
         async remove(id) {
           const { error } = await client.from("products")
@@ -273,6 +384,7 @@ async save(p) {
         async replaceAll() {
           throw new Error("replaceAll is unavailable on the live database — import through the admin review step instead.");
         },
+        async discardDraft() {},
         hasDraft() { return false; }
       },
 categories: {
@@ -306,21 +418,23 @@ categories: {
 },
      files: {
   async upload(file, meta) {
+    const targetBucket = meta?.folder === "projects" ? PROJECT_BUCKET : B;
     const path = `${(meta && meta.folder) || "misc"}/${Date.now()}-${file.name}`;
 
     const { error } = await client.storage
-      .from(B)
+      .from(targetBucket)
       .upload(path, file);
 
     if (error) throw error;
 
-    const { data } = client.storage
-      .from(B)
-      .getPublicUrl(path);
+    const publicUrl = targetBucket === B
+      ? client.storage.from(targetBucket).getPublicUrl(path).data.publicUrl
+      : null;
 
     return {
       path,
-      url: data.publicUrl,
+      url: publicUrl,
+      bucket: targetBucket,
       size: file.size,
       name: file.name,
       type: file.type,
@@ -328,11 +442,11 @@ categories: {
     };
   },
 
-async remove(path) {
+async remove(path, bucketName) {
   if (!path) return;
 
   const { data, error } = await client.storage
-    .from(B)
+    .from(bucketName || B)
     .remove([path]);
 
   console.log("STORAGE REMOVE RESULT:", {
@@ -377,7 +491,7 @@ async remove(path) {
               project_id: data.id,
               kind,
               original_name: p.file.name || "attachment",
-              storage_bucket: B,
+              storage_bucket: p.file.bucket || PROJECT_BUCKET,
               storage_path: p.file.path,
               mime_type: p.file.type || null,
               size_bytes: p.file.size || null
@@ -412,13 +526,13 @@ async remove(path) {
     };
   }
 
-  /* ── active backend ──────────────────────────────────────────
-     To go live:
-       1. run db/schema.sql on your Supabase project
-       2. load @supabase/supabase-js before this file
-       3. set CKA_CONFIG below
-       4. change the line marked ACTIVE */
-  global.CKA_CONFIG = global.CKA_CONFIG || { supabaseUrl: "https://qrjglihvjhhemqoegqmt.supabase.co", supabaseAnonKey: "sb_publishable_8dwB_hn54sbrDsLgZR_7HQ_GEB9yHs4", storageBucket: "project-uploads" };
+  /* ── active backend ────────────────────────────────────────── */
+  global.CKA_CONFIG = global.CKA_CONFIG || {
+    supabaseUrl: "https://qrjglihvjhhemqoegqmt.supabase.co",
+    supabaseAnonKey: "sb_publishable_8dwB_hn54sbrDsLgZR_7HQ_GEB9yHs4",
+    storageBucket: "product-images",
+    projectStorageBucket: "project-uploads"
+  };
 
  const sb = supabase.createClient(
   CKA_CONFIG.supabaseUrl,
@@ -427,7 +541,8 @@ async remove(path) {
 
 let active = createSupabaseStore(
   sb,
-  CKA_CONFIG.storageBucket
+  CKA_CONFIG.storageBucket,
+  CKA_CONFIG.projectStorageBucket
 );
 
 active.storage = sb.storage;
