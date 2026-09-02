@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>CKA BuildStruct — Admin Console</title>
+<link rel="icon" type="image/png" href="assets/img/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="assets/css/styles.css?v=20" />
+<link rel="stylesheet" href="assets/css/admin.css?v=20" />
+</head>
+<body class="adm">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></symbol>
+</defs></svg>
+
+<div class="adm__shell">
+
+  <aside class="adm__side">
+    <a class="adm__brand" href="index.html">
+      <img src="assets/img/logo-mark.png" alt="" width="200" height="200" />
+      <span class="brand__txt"><b>CKA</b><i>Admin</i></span>
+    </a>
+    <nav class="adm__nav" aria-label="Admin sections">
+      <button class="adm__navlink is-active" data-view="catalogue"><svg class="ic"><use href="#i-box"/></svg>Catalogue</button>
+      <button class="adm__navlink" data-view="categories"><svg class="ic"><use href="#i-grid"/></svg>Categories</button>
+      <button class="adm__navlink" data-view="data"><svg class="ic"><use href="#i-file"/></svg>Import &amp; publish</button>
+      <button class="adm__navlink" data-view="insights"><svg class="ic"><use href="#i-chart"/></svg>Insights</button>
+      <button class="adm__navlink" data-view="roadmap"><svg class="ic"><use href="#i-users"/></svg>Not built yet</button>
+    </nav>
+    <p class="adm__mode">
+      <span class="chip chip--info">Local mode</span>
+      Edits live in this browser until you publish.
+    </p>
+  </aside>
+
+  <main class="adm__main">
+
+    <div class="adm__banner" id="draft-banner" hidden>
+      <svg class="ic"><use href="#i-alert"/></svg>
+      <span><strong>Unpublished changes.</strong> <span id="draft-count"></span> Publish to generate a new <code>data.js</code>, or discard to return to the shipped catalogue.</span>
+      <button class="btn btn--ghost btn--sm" id="go-publish">Publish</button>
+      <button class="btn btn--ghost btn--sm" id="discard-draft">Discard</button>
+    </div>
+
+    <!-- ══ CATALOGUE ══ -->
+    <section class="adm__view is-active" data-view="catalogue">
+      <header class="adm__head">
+        <div>
+          <h1>Catalogue</h1>
+          <p id="cat-summary">Loading…</p>
+        </div>
+        <button class="btn btn--brand" id="new-product"><svg class="ic"><use href="#i-plus"/></svg>New product</button>
+      </header>
+
+      <div class="adm__toolbar">
+        <label class="adm__search">
+          <svg class="ic"><use href="#i-search"/></svg>
+          <input class="input" type="search" id="adm-search" placeholder="Search name, brand, category or tag" />
+        </label>
+        <select class="select" id="adm-cat"><option value="">All categories</option></select>
+        <select class="select" id="adm-stock">
+          <option value="">Any availability</option>
+          <option>In stock</option><option>Low stock</option>
+          <option>On order</option><option>Out of stock</option>
+        </select>
+      </div>
+
+      <div class="adm__tablewrap">
+        <table class="adm__table">
+          <thead>
+            <tr>
+              <th style="width:44px"></th>
+              <th data-sort="title">Product</th>
+              <th data-sort="category">Category</th>
+              <th data-sort="brand">Brand</th>
+              <th data-sort="price" class="num">Price</th>
+              <th>Availability</th>
+              <th style="width:96px"></th>
+            </tr>
+          </thead>
+          <tbody id="adm-rows"></tbody>
+        </table>
+        <p class="adm__empty" id="adm-empty" hidden>Nothing matches those filters.</p>
+      </div>
+    </section>
+
+    <!-- ══ CATEGORIES ══ -->
+    <section class="adm__view" data-view="categories">
+      <header class="adm__head"><div><h1>Categories</h1><p>Groups and categories currently driving the marketplace tabs.</p></div></header>
+      <div class="adm__cards" id="cat-cards"></div>
+      <p class="adm__note">Categories are defined by <code>GROUPS</code> in <code>assets/js/data.js</code>. Adding a category here requires a publish; on a live database it becomes a row in the <code>categories</code> table.</p>
+    </section>
+
+    <!-- ══ IMPORT & PUBLISH ══ -->
+    <section class="adm__view" data-view="data">
+      <header class="adm__head"><div><h1>Import &amp; publish</h1><p>Move the catalogue between Excel and the site.</p></div></header>
+
+      <div class="adm__steps">
+        <article class="adm__card">
+          <span class="adm__step">01</span>
+          <h3>Download the template</h3>
+          <p>A structured workbook with every column, dropdown validation, a field guide and your live category list.</p>
+          <a class="btn btn--ghost" href="docs/CKA-Product-Import-Template.xlsx" download><svg class="ic"><use href="#i-down"/></svg>Excel template</a>
+        </article>
+
+        <article class="adm__card">
+          <span class="adm__step">02</span>
+          <h3>Export what's live</h3>
+          <p>Pull the current catalogue into Excel, edit prices or stock in bulk, then bring it back.</p>
+          <button class="btn btn--ghost" id="export-xlsx"><svg class="ic"><use href="#i-down"/></svg>Export catalogue</button>
+        </article>
+
+        <article class="adm__card">
+          <span class="adm__step">03</span>
+          <h3>Import your sheet</h3>
+          <p>Rows are checked before anything changes. You see exactly what will be added, updated or rejected.</p>
+          <label class="btn btn--ghost" for="import-xlsx"><svg class="ic"><use href="#i-up"/></svg>Choose file</label>
+          <input type="file" id="import-xlsx" accept=".xlsx,.xls,.csv" hidden />
+        </article>
+
+        <article class="adm__card adm__card--go">
+          <span class="adm__step">04</span>
+          <h3>Publish</h3>
+          <p>Generates a new <code>assets/js/data.js</code>. Replace the file on your host and the site is updated.</p>
+          <button class="btn btn--brand" id="publish"><svg class="ic"><use href="#i-down"/></svg>Generate data.js</button>
+        </article>
+      </div>
+
+      <div id="import-report" hidden></div>
+    </section>
+
+    <!-- ══ INSIGHTS ══ -->
+    <section class="adm__view" data-view="insights">
+      <header class="adm__head"><div><h1>Insights</h1><p>Computed from the catalogue you have loaded.</p></div></header>
+      <div class="adm__stats" id="adm-stats"></div>
+      <div class="adm__cards" id="adm-breakdown"></div>
+      <p class="adm__note">Traffic, conversion and quotation analytics need a backend — see “Not built yet”.</p>
+    </section>
+
+    <!-- ══ ROADMAP ══ -->
+    <section class="adm__view" data-view="roadmap">
+      <header class="adm__head"><div><h1>Not built yet</h1><p>What this console deliberately does not pretend to do.</p></div></header>
+      <div class="adm__cards">
+        <article class="adm__card"><h3>Authentication</h3><p>There is no login, because a static site cannot keep a secret. Anything in this page is readable by anyone who opens it. Host it behind HTTP auth, a private path, or run it locally until Supabase Auth is wired in.</p></article>
+        <article class="adm__card"><h3>Customer &amp; supplier accounts</h3><p>Tables exist in <code>db/schema.sql</code> (<code>profiles</code>, <code>suppliers</code>, <code>customers</code> via profiles) with row-level security already written. Needs the database.</p></article>
+        <article class="adm__card"><h3>Quotations &amp; BOQ inbox</h3><p>Front-end forms currently confirm and discard. <code>quotes</code>, <code>quote_items</code>, <code>projects</code> and <code>project_files</code> are modelled and ready.</p></article>
+        <article class="adm__card"><h3>File uploads</h3><p>DWG, PDF and ZIP uploads need object storage. <code>CKAStore.files.upload()</code> is the single call site — swapping to Supabase Storage, S3 or Cloudinary changes one function.</p></article>
+        <article class="adm__card"><h3>Live bidding</h3><p>The board on the public site is a simulation. Real bids need <code>supplier_bids</code> plus a realtime channel.</p></article>
+        <article class="adm__card"><h3>Image uploads</h3><p>New images must be added to <code>assets/img/</code> and referenced by path. Direct upload arrives with storage.</p></article>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══ PRODUCT EDITOR ══ -->
+<div class="adm__drawer-wrap" id="editor" aria-hidden="true">
+  <div class="adm__drawer-overlay" data-close-editor></div>
+  <div class="adm__drawer" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+    <header class="adm__drawer-head">
+      <h2 id="editor-title">Edit product</h2>
+      <button class="icon-btn" data-close-editor aria-label="Close editor"><svg class="ic"><use href="#i-x"/></svg></button>
+    </header>
+    <form class="adm__drawer-body" id="editor-form" novalidate>
+      <input type="hidden" name="id" />
+      <div class="adm__grid2">
+        <label class="field"><span>Product name *</span><input class="input" name="title" required /></label>
+        <label class="field"><span>Brand</span><input class="input" name="brand" /></label>
+        <label class="field"><span>Category *</span><select class="select" name="category" required id="ed-cat"></select></label>
+        <label class="field"><span>Subcategory</span><input class="input" name="subcategory" /></label>
+        <label class="field"><span>Unit *</span><input class="input" name="unit" placeholder="per bag" required /></label>
+        <label class="field"><span>Quality / class</span><select class="select" name="quality"><option>A</option><option>B</option><option>C</option></select></label>
+        <label class="field"><span>Grade</span><input class="input" name="grade" placeholder="Grade 60" /></label>
+        <label class="field"><span>Size</span><input class="input" name="size" placeholder="16 mm" /></label>
+        <label class="field"><span>Current price (PKR) *</span><input class="input" name="price" type="number" min="0" step="1" required /></label>
+        <label class="field"><span>Old price (PKR)</span><input class="input" name="oldPrice" type="number" min="0" step="1" /></label>
+        <label class="field"><span>Market range</span><input class="input" name="range" placeholder="PKR 1,420 – 1,500" /></label>
+        <label class="field"><span>Availability</span><select class="select" name="stock">
+          <option value="">Not shown</option><option>In stock</option><option>Low stock</option>
+          <option>On order</option><option>Out of stock</option></select></label>
+        <label class="field"><span>Supplier</span><input class="input" name="supplier" /></label>
+        <label class="field"><span>Badge</span><input class="input" name="badge" placeholder="OPC" /></label>
+        <label class="field"><span>Display order</span><input class="input" name="order" type="number" step="1" /></label>
+        <label class="field"><span>Rating</span><input class="input" name="rating" type="number" min="0" max="5" step="0.1" /></label>
+      </div>
+      <label class="field"><span>Description</span><textarea class="input" name="description" rows="2"></textarea></label>
+     <label class="field">
+  <span>Images — one path per line, first is the main image</span>
+  <textarea class="input" name="images" rows="3" placeholder="assets/img/steel-rebar.webp"></textarea>
+</label>
+
+<div class="field">
+  <span>Upload product image</span>
+  <input
+    class="input"
+    id="product-image-upload"
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+  />
+  <small style="display:block;margin-top:6px;opacity:.7;">
+    Select an image to upload it to Supabase Storage.
+  </small>
+</div>
+
+<div class="adm__thumbs" id="ed-thumbs"></div>
+      <label class="field"><span>Specifications — key: value; key: value</span>
+        <input class="input" name="specs" placeholder="Standard: ASTM A615; Length: 40 ft" /></label>
+      <label class="field"><span>Tags — comma separated</span><input class="input" name="tags" /></label>
+      <label class="adm__check"><input type="checkbox" name="featured" /> <span>Featured product</span></label>
+    </form>
+    <footer class="adm__drawer-foot">
+      <button class="btn btn--ghost" data-close-editor>Cancel</button>
+      <button class="btn btn--brand" id="save-product"><svg class="ic"><use href="#i-check"/></svg>Save product</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/data.js?v=20"></script>
+<script src="assets/js/store.js?v=25"></script>
+<script src="assets/js/admin.js?v=25"></script>
+<script>
+(async function requireAdminAuth() {
+
+  try {
+
+    const authClient = supabase.createClient(
+      CKA_CONFIG.supabaseUrl,
+      CKA_CONFIG.supabaseAnonKey
+    );
+
+    const { data, error } =
+      await authClient.auth.getUser();
+
+    if (error || !data?.user) {
+      window.location.replace("admin-login.html");
+      return;
+    }
+
+    const { data: profile, error: profileError } =
+      await authClient
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+    if (
+      profileError ||
+      !profile ||
+      !["admin", "staff"].includes(profile.role)
+    ) {
+      await authClient.auth.signOut();
+      window.location.replace("admin-login.html");
+      return;
+    }
+
+    console.log("✅ ADMIN AUTH VERIFIED:", data.user.email);
+
+  } catch (err) {
+
+    console.error("❌ AUTH CHECK FAILED:", err);
+
+    window.location.replace("admin-login.html");
+  }
+
+})();
+</script>
+</body>
+</html>

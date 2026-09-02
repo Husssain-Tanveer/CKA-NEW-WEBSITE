@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CKA BuildStruct — Admin Login</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/data.js?v=20"></script>
+<script src="assets/js/store.js?v=21"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111315;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+
+    .login-box {
+      width: 380px;
+      padding: 40px;
+      background: #1b1e21;
+      border: 1px solid #333;
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 1px;
+    }
+
+    .logo p {
+      margin-top: 8px;
+      color: #aaa;
+      font-size: 13px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 13px;
+      color: #ccc;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      margin-bottom: 18px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #111315;
+      color: #fff;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #c9a45c;
+    }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      border: 0;
+      border-radius: 8px;
+      background: #c9a45c;
+      color: #111;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #d8b66e;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    #message {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    .back {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .back a {
+      color: #aaa;
+      font-size: 12px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-box">
+
+    <div class="logo">
+      <h1>CKA BuildStruct</h1>
+      <p>Administrator Login</p>
+    </div>
+
+    <form id="loginForm">
+
+      <label for="email">Email</label>
+      <input
+        id="email"
+        type="email"
+        value="khazaimaaslamofc@gmail.com"
+        required
+      >
+
+      <label for="password">Password</label>
+      <input
+        id="password"
+        type="password"
+        placeholder="Enter admin password"
+        required
+      >
+
+      <button id="loginBtn" type="submit">
+        Sign In
+      </button>
+
+    </form>
+
+    <div id="message"></div>
+
+    <div class="back">
+      <a href="admin.html">Back to Admin Dashboard</a>
+    </div>
+
+  </div>
+
+<script>
+
+const SUPABASE_URL =
+  "https://qrjglihvjhhemqoegqmt.supabase.co";
+
+const client = supabase.createClient(
+  CKA_CONFIG.supabaseUrl,
+  CKA_CONFIG.supabaseAnonKey
+);
+
+const form = document.getElementById("loginForm");
+const button = document.getElementById("loginBtn");
+const message = document.getElementById("message");
+
+form.addEventListener("submit", async (event) => {
+
+  event.preventDefault();
+
+  const email =
+    document.getElementById("email").value.trim();
+
+  const password =
+    document.getElementById("password").value;
+
+  button.disabled = true;
+  button.textContent = "Signing in...";
+  message.textContent = "";
+
+  try {
+
+    const { data, error } =
+      await client.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data.user) {
+      throw new Error("Login failed. No user returned.");
+    }
+
+    const { data: profile, error: profileError } =
+      await client
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", data.user.id)
+        .single();
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    if (!["admin", "staff"].includes(profile.role)) {
+
+      await client.auth.signOut();
+
+      throw new Error(
+        "Access denied. This account is not authorized for the admin dashboard."
+      );
+    }
+
+    message.style.color = "#7bd88f";
+    message.textContent = "Login successful. Opening dashboard...";
+
+    setTimeout(() => {
+      window.location.href = "admin.html";
+    }, 500);
+
+  } catch (error) {
+
+    console.error("LOGIN ERROR:", error);
+
+    message.style.color = "#ff7777";
+    message.textContent =
+      error?.message || "Login failed.";
+
+    button.disabled = false;
+    button.textContent = "Sign In";
+  }
+
+});
+
+</script>
+
+</body>
+</html>
