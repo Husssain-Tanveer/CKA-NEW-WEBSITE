@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    CKA BuildStruct — admin.js
-   Local product management console.
+   Supabase-backed product management console.
 
    Reads and writes through CKAStore only, so the day the Supabase
    adapter is switched on in store.js this file keeps working
@@ -19,7 +19,9 @@
     const box = $("#toasts");
     const el = document.createElement("div");
     el.className = "toast" + (kind === "warn" ? " toast--warn" : "");
-    el.innerHTML = `<span>${msg}</span>`;
+    const label = document.createElement("span");
+    label.textContent = String(msg);
+    el.appendChild(label);
     box.appendChild(el);
     setTimeout(() => { el.classList.add("is-leaving"); setTimeout(() => el.remove(), 300); }, 3600);
   }
@@ -198,10 +200,15 @@ async function load() {
     if (ed) return openEditor(products.find((p) => String(p.id) === ed.dataset.edit));
     if (dl) {
       const p = products.find((x) => String(x.id) === dl.dataset.del);
-      if (!confirm(`Delete "${p.title}"?\n\nThis changes your working copy only — the live site is unaffected until you publish.`)) return;
-      await CKAStore.products.remove(p.id);
-      await load();
-      toast("Product removed from the working copy.");
+      if (!p || !confirm(`Remove "${p.title}" from the live catalogue?\n\nThe product will be hidden, not permanently erased.`)) return;
+      try {
+        await CKAStore.products.remove(p.id);
+        await load();
+        toast("Product removed from the live catalogue.");
+      } catch (error) {
+        console.error("PRODUCT DELETE ERROR:", error);
+        toast("Could not remove the product: " + error.message, "warn");
+      }
     }
   });
 
@@ -214,7 +221,7 @@ async function load() {
     $("#editor-title").textContent = p ? "Edit product" : "New product";
     form.reset();
     Object.entries({
-      id: d.id, title: d.title, brand: d.brand, category: d.category, subcategory: d.subcategory,
+      id: d.id, sku: d.sku, title: d.title, brand: d.brand, category: d.category, subcategory: d.subcategory,
       unit: d.unit, quality: d.quality || "A", grade: d.grade, size: d.size,
       price: d.price || "", oldPrice: d.oldPrice || "", range: d.range, stock: d.stock,
       supplier: d.supplier, badge: d.badge, order: d.order || "", rating: d.rating || "",
@@ -248,34 +255,23 @@ $("#product-image-upload").addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (!allowedTypes.has(file.type) || file.size > 5 * 1024 * 1024) {
+    toast("Choose a JPG, PNG or WebP image up to 5 MB.", "warn");
+    e.target.value = "";
+    return;
+  }
+
   try {
     toast("Uploading image...", "info");
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const filePath = `product-images/${Date.now()}-${safeName}`;
-
-    const { error } = await CKAStore.storage
-      .from("project-uploads")
-      .upload(filePath, file, {
-        cacheControl: "3600",
-        upsert: false
-      });
-
-    if (error) throw error;
-
-    const { data } = CKAStore.storage
-      .from("project-uploads")
-      .getPublicUrl(filePath);
-
-    const url = data.publicUrl;
-
-form.images.value = url;
+    const uploaded = await CKAStore.files.upload(file, { folder: "product-images" });
+    const existing = form.images.value.split("\n").map((value) => value.trim()).filter(Boolean);
+    form.images.value = [uploaded.url, ...existing.filter((url) => url !== uploaded.url)].join("\n");
 
     drawThumbs();
 
     toast("Image uploaded successfully.", "ok");
-    console.log("IMAGE URL:", url);
-
   } catch (error) {
     console.error("IMAGE UPLOAD ERROR:", error);
     toast("Image upload failed.", "error");
@@ -312,17 +308,18 @@ const newImages = fd.images
   .map((s) => s.trim())
   .filter(Boolean);
 
-await CKAStore.products.save({
-  ...fd,
-  id: fd.id || undefined,
-  price: +fd.price || 0,
-  oldPrice: +fd.oldPrice || 0,
-  order: +fd.order || 0,
-  rating: +fd.rating || 0,
-  featured: form.featured.checked,
-  images: newImages,
-  tags: fd.tags.split(",").map((s) => s.trim()).filter(Boolean)
-});
+try {
+  await CKAStore.products.save({
+    ...fd,
+    id: fd.id || undefined,
+    price: +fd.price || 0,
+    oldPrice: +fd.oldPrice || 0,
+    order: +fd.order || 0,
+    rating: +fd.rating || 0,
+    featured: form.featured.checked,
+    images: newImages,
+    tags: fd.tags.split(",").map((s) => s.trim()).filter(Boolean)
+  });
 
 // Check whether the old image is still used by another product
 if (oldImage && oldImage !== newImages[0]) {
@@ -340,17 +337,10 @@ if (oldImage && oldImage !== newImages[0]) {
     stillUsed
   });
 
-  if (oldImage && oldImage !== newImages[0] && !stillUsed) {
+  const storageMarker = `/storage/v1/object/public/${CKA_CONFIG.storageBucket}/`;
+  if (oldImage.includes(storageMarker) && oldImage !== newImages[0] && !stillUsed) {
     try {
-      const oldPath = oldImage.includes("/storage/v1/object/public/")
-        ? oldImage.split("/storage/v1/object/public/")[1]
-        : oldImage;
-
-      const bucketPrefix = "project-uploads/";
-
-      const storagePath = oldPath.startsWith(bucketPrefix)
-        ? oldPath.substring(bucketPrefix.length)
-        : oldPath;
+      const storagePath = oldImage.split(storageMarker)[1];
 
       await CKAStore.files.remove(storagePath);
 
@@ -363,7 +353,11 @@ if (oldImage && oldImage !== newImages[0]) {
 
 closeEditor();
 await load();
-toast("Saved to the working copy.");
+toast("Product saved to Supabase.");
+} catch (error) {
+  console.error("PRODUCT SAVE ERROR:", error);
+  toast("Could not save the product: " + error.message, "warn");
+}
   });
 
   /* ── CATEGORIES ──────────────────────────────────────────── */
@@ -459,7 +453,7 @@ toast("Saved to the working copy.");
     const p = {};
     COLUMNS.forEach(([header, key]) => { p[key] = r[header]; });
     return {
-      id: p.sku || undefined,
+      id: undefined,
       sku: String(p.sku || "").trim(),
       title: String(p.title || "").trim(),
       category: String(p.category || "").trim(),
@@ -485,7 +479,7 @@ toast("Saved to the working copy.");
 
   function review(rows) {
     const known = new Set(products.map((p) => String(p.sku || p.id)));
-    const validCats = new Set(products.map((p) => p.category));
+    const validCats = new Set(categories.flatMap((group) => group.children));
     const parsed = [], errors = [];
 
     rows.forEach((r, i) => {
@@ -495,6 +489,7 @@ toast("Saved to the working copy.");
       if (skip) return;                                   // blank spacer row
       const rowErrs = [];
       if (!p.title) rowErrs.push("Product Name is required");
+      if (!p.sku) rowErrs.push("Product ID is required");
       if (!p.category) rowErrs.push("Category is required");
       else if (validCats.size && !validCats.has(p.category)) rowErrs.push(`Unknown category “${p.category}”`);
       if (!p.unit) rowErrs.push("Unit is required");
@@ -526,28 +521,26 @@ toast("Saved to the working copy.");
         <div class="adm__reportacts">
           <button class="btn btn--ghost" id="cancel-import">Cancel</button>
           <button class="btn btn--brand" id="apply-merge" ${parsed.length ? "" : "disabled"}>Apply ${parsed.length} rows</button>
-          <button class="btn btn--line" id="apply-replace" ${parsed.length ? "" : "disabled"}>Replace entire catalogue</button>
+          <button class="btn btn--line" id="apply-replace" disabled title="Use Apply rows for the live Supabase catalogue">Replace unavailable in live mode</button>
         </div>
-        <p class="adm__note">“Apply” merges by Product ID and leaves everything else untouched. “Replace” discards any product not present in this sheet — use it only for a full catalogue rebuild.</p>
+        <p class="adm__note">“Apply” merges by Product ID and leaves everything else untouched. Full replacement is disabled for the live database to prevent accidental catalogue deletion.</p>
       </div>`;
     box.scrollIntoView({ behavior: "smooth", block: "start" });
 
     $("#cancel-import").onclick = () => { box.hidden = true; box.innerHTML = ""; };
 
     $("#apply-merge").onclick = async () => {
-      for (const p of parsed) await CKAStore.products.save(p);
-      box.hidden = true; box.innerHTML = "";
-      await load();
-      toast(`${updates.length} updated, ${adds.length} added.`);
+      try {
+        for (const p of parsed) await CKAStore.products.save(p);
+        box.hidden = true; box.innerHTML = "";
+        await load();
+        toast(`${updates.length} updated, ${adds.length} added.`);
+      } catch (error) {
+        console.error("CATALOGUE IMPORT ERROR:", error);
+        toast("Import stopped: " + error.message, "warn");
+      }
     };
 
-    $("#apply-replace").onclick = async () => {
-      if (!confirm(`Replace all ${products.length} products with the ${parsed.length} rows in this sheet?\n\nAnything not in the sheet will be removed from your working copy.`)) return;
-      await CKAStore.products.replaceAll(parsed);
-      box.hidden = true; box.innerHTML = "";
-      await load();
-      toast(`Catalogue replaced with ${parsed.length} products.`);
-    };
   }
 
   /* ── PUBLISH ─────────────────────────────────────────────────
@@ -600,7 +593,15 @@ toast("Saved to the working copy.");
     a.download = "data.js";
     a.click();
     URL.revokeObjectURL(a.href);
-    toast("data.js generated — replace assets/js/data.js on your host.");
+    toast("data.js backup downloaded.");
+  });
+
+  $("#logout-admin").addEventListener("click", async () => {
+    try {
+      await CKAStore.supabase.auth.signOut();
+    } finally {
+      window.location.replace("admin-login.html");
+    }
   });
 
   $("#discard-draft").addEventListener("click", async () => {
