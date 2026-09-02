@@ -128,7 +128,8 @@
       <input
         id="email"
         type="email"
-        value="khazaimaaslamofc@gmail.com"
+        placeholder="Enter admin email"
+        autocomplete="username"
         required
       >
 
@@ -137,6 +138,7 @@
         id="password"
         type="password"
         placeholder="Enter admin password"
+        autocomplete="current-password"
         required
       >
 
@@ -149,24 +151,19 @@
     <div id="message"></div>
 
     <div class="back">
-      <a href="admin.html">Back to Admin Dashboard</a>
+      <a href="index.html">Back to website</a>
     </div>
 
   </div>
 
 <script>
 
-const SUPABASE_URL =
-  "https://qrjglihvjhhemqoegqmt.supabase.co";
-
-const client = supabase.createClient(
-  CKA_CONFIG.supabaseUrl,
-  CKA_CONFIG.supabaseAnonKey
-);
+const client = CKAStore.supabase;
 
 const form = document.getElementById("loginForm");
 const button = document.getElementById("loginBtn");
 const message = document.getElementById("message");
+let signedIn = false;
 
 form.addEventListener("submit", async (event) => {
 
@@ -197,6 +194,7 @@ form.addEventListener("submit", async (event) => {
     if (!data.user) {
       throw new Error("Login failed. No user returned.");
     }
+    signedIn = true;
 
     const { data: profile, error: profileError } =
       await client
@@ -205,8 +203,8 @@ form.addEventListener("submit", async (event) => {
         .eq("id", data.user.id)
         .single();
 
-    if (profileError) {
-      throw profileError;
+    if (profileError || !profile) {
+      throw new Error("This account does not have an authorized admin profile.");
     }
 
     if (!["admin", "staff"].includes(profile.role)) {
@@ -228,6 +226,11 @@ form.addEventListener("submit", async (event) => {
   } catch (error) {
 
     console.error("LOGIN ERROR:", error);
+
+    if (signedIn) {
+      await client.auth.signOut();
+      signedIn = false;
+    }
 
     message.style.color = "#ff7777";
     message.textContent =
