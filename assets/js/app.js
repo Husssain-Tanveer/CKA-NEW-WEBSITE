@@ -764,7 +764,12 @@
       };
       try {
         const file = fd.get("file");
-        if (file && file.size) payload.file = await CKAStore.files.upload(file, { folder: "projects" });
+        if (file && file.size) {
+          if (file.size > 10 * 1024 * 1024) {
+            throw new Error("The project attachment must be 10 MB or smaller.");
+          }
+          payload.file = await CKAStore.files.upload(file, { folder: "projects" });
+        }
         const row = await CKAStore.projects.create(payload);
         projectForm.classList.remove("is-sending");
         toast(`Project submitted — reference <strong>${esc(row.reference)}</strong>. Supplier quotations will appear on your board shortly.` +
