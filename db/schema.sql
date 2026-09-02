@@ -294,6 +294,10 @@ drop policy if exists "own profile" on profiles;
 create policy "own profile" on profiles
   for select using (id = auth.uid() or is_staff());
 
+drop policy if exists "staff manage suppliers" on suppliers;
+create policy "staff manage suppliers" on suppliers
+  for all using (is_staff()) with check (is_staff());
+
 drop policy if exists "own quotes" on quotes;
 create policy "own quotes" on quotes
   for select using (customer_id = auth.uid() or is_staff());
@@ -350,7 +354,7 @@ create policy "supplier write own bids" on supplier_bids for all
 -- ── convenience view for the catalogue front end ───────────────
 create or replace view v_catalogue as
 select
-  p.id, p.sku, p.name, p.brand, p.unit, p.price, p.old_price,
+  p.id, p.sku, p.name, p.brand, p.description, p.unit, p.price, p.old_price,
   p.price_min, p.price_max, p.stock, p.is_featured, p.display_order,
   p.rating, p.order_count, p.specifications, p.tags, p.price_checked_at,
   c.slug  as category_slug,
@@ -545,19 +549,37 @@ create policy "supplier manage own media" on supplier_media for all
   with check (is_staff() or supplier_id in (select id from suppliers where profile_id = auth.uid()));
 
 -- ═══════════════════════════════════════════════════════════════
--- Storage — project-uploads bucket (BOQs, drawings, images attached
--- to a project or quote). Public bucket, but only reachable by exact
--- object path — nothing is listable, so this is fine for uploads
--- submitted through a public form with no login yet.
+-- Storage — separate public catalogue images from private customer
+-- submissions. Anonymous project uploads are restricted to projects/;
+-- only staff can read or remove those private files.
 -- ═══════════════════════════════════════════════════════════════
 insert into storage.buckets (id, name, public)
-values ('project-uploads', 'project-uploads', true)
-on conflict (id) do nothing;
+values ('project-uploads', 'project-uploads', false)
+on conflict (id) do update set public = excluded.public;
+
+insert into storage.buckets (id, name, public)
+values ('product-images', 'product-images', true)
+on conflict (id) do update set public = excluded.public;
 
 drop policy if exists "public upload project-uploads" on storage.objects;
 create policy "public upload project-uploads" on storage.objects for insert
-  with check (bucket_id = 'project-uploads');
+  with check (
+    bucket_id = 'project-uploads'
+    and (storage.foldername(name))[1] = 'projects'
+  );
 
 drop policy if exists "public read project-uploads" on storage.objects;
-create policy "public read project-uploads" on storage.objects for select
-  using (bucket_id = 'project-uploads');
+
+drop policy if exists "staff manage project-uploads" on storage.objects;
+create policy "staff manage project-uploads" on storage.objects for all
+  using (bucket_id = 'project-uploads' and public.is_staff())
+  with check (bucket_id = 'project-uploads' and public.is_staff());
+
+drop policy if exists "public read product-images" on storage.objects;
+create policy "public read product-images" on storage.objects for select
+  using (bucket_id = 'product-images');
+
+drop policy if exists "staff manage product-images" on storage.objects;
+create policy "staff manage product-images" on storage.objects for all
+  using (bucket_id = 'product-images' and public.is_staff())
+  with check (bucket_id = 'product-images' and public.is_staff());
